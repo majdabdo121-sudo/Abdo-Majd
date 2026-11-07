@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Météo</string>
+    <string name="search_city_hint">Rechercher une ville...</string>
+    <string name="favorites_title">Villes enregistrées</string>
+    <string name="no_favorites">Aucune ville enregistrée pour le moment</string>
+    <string name="add_to_favorites">Ajouter aux favoris</string>
+    <string name="remove_from_favorites">Retirer des favoris</string>
+    <string name="hourly_forecast">Prévisions heure par heure</string>
+    <string name="daily_forecast">Prévisions sur 7 jours</string>
+    <string name="details_title">Conditions actuelles</string>
+    <string name="feels_like">Ressenti</string>
+    <string name="humidity">Humidité</string>
+    <string name="wind">Vent</string>
+    <string name="uv_index">Indice UV</string>
+    <string name="pressure">Pression</string>
+    <string name="precipitation">Précipitation</string>
+    <string name="visibility">Visibilité</string>
+    <string name="sunrise">Lever du soleil</string>
+    <string name="sunset">Coucher du soleil</string>
+    <string name="last_updated">Mis à jour : %s</string>
+    <string name="refresh">Actualiser</string>
+    <string name="search">Rechercher</string>
+    <string name="error_loading">Impossible de charger la météo</string>
+    <string name="retry">Réessayer</string>
+    <string name="use_my_location">Utiliser ma position</string>
+    <string name="location_permission_denied">Permission de localisation non accordée</string>
+</resources>
