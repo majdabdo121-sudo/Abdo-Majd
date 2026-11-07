@@ -39,5 +39,12 @@ data class WeatherUiState(
     val savedCities: List<SavedCity> = emptyList(),
     val lastUpdated: String? = null,
     val alerts: List<com.example.data.model.WeatherAlert> = emptyList(),
-    val alertSettings: com.example.data.model.AlertSettings = com.example.data.model.AlertSettings()
+    val alertSettings: com.example.data.model.AlertSettings = com.example.data.model.AlertSettings(),
+    val aiBriefing: String? = null,
+    val isGeneratingBriefing: Boolean = false,
+    val aiBriefingError: String? = null,
+    val aiQuestion: String = "",
+    val aiAnswer: String? = null,
+    val isAskingQuestion: Boolean = false,
+    val aiQuestionError: String? = null
 )

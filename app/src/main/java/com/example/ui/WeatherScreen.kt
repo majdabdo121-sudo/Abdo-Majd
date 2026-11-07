@@ -77,6 +77,7 @@ import com.example.ui.components.AlertsSheet
 import com.example.ui.components.CityManagerSheet
 import com.example.ui.components.CitySearchSheet
 import com.example.ui.components.DailyForecastCard
+import com.example.ui.components.GeminiWeatherCard
 import com.example.ui.components.HourlyForecastCard
 import com.example.ui.components.WeatherAtmosphere
 import com.example.ui.components.WeatherDetailsGrid
@@ -567,7 +568,25 @@ fun WeatherScreen(
                         }
 
                         item {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
+                            GeminiWeatherCard(
+                                aiBriefing = state.aiBriefing,
+                                isGeneratingBriefing = state.isGeneratingBriefing,
+                                aiBriefingError = state.aiBriefingError,
+                                aiQuestion = state.aiQuestion,
+                                aiAnswer = state.aiAnswer,
+                                isAskingQuestion = state.isAskingQuestion,
+                                aiQuestionError = state.aiQuestionError,
+                                cityName = state.currentCity.name,
+                                onGenerateBriefing = { viewModel.generateAiBriefing() },
+                                onAskQuestion = { viewModel.askAiQuestion(it) },
+                                onClearQuestion = { viewModel.clearAiQuestion() },
+                                modifier = Modifier.padding(horizontal = 20.dp)
+                            )
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(14.dp))
                             HourlyForecastCard(
                                 hourly = state.weather?.hourly,
                                 tempUnit = state.tempUnit,

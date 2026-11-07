@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.data.ai.WeatherAiService
 import com.example.data.local.SavedCity
 import com.example.data.model.AlertSeverity
 import com.example.data.model.AlertSettings
@@ -14,13 +15,16 @@ import com.example.data.model.WeatherCodeMapper
 import com.example.data.model.WeatherResponse
 import com.example.data.repository.WeatherRepository
 import com.example.util.NotificationHelper
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -35,6 +39,9 @@ class WeatherViewModel(
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
 
     private var searchJob: Job? = null
+    private val aiService = WeatherAiService()
+    private var briefingJob: Job? = null
+    private var questionJob: Job? = null
 
     init {
         // Observe saved cities from Room
@@ -328,6 +335,127 @@ class WeatherViewModel(
                 tempUnit = if (it.tempUnit == TempUnit.CELSIUS) TempUnit.FAHRENHEIT else TempUnit.CELSIUS
             )
         }
+    }
+
+    fun generateAiBriefing() {
+        val weather = _uiState.value.weather ?: return
+        val city = _uiState.value.currentCity
+        val current = weather.current ?: return
+        val daily = weather.daily
+        val info = WeatherCodeMapper.getWeatherInfo(current.weatherCode, current.isDay == 1)
+        val maxTemp = daily?.temperatureMax?.firstOrNull() ?: current.temperature
+        val minTemp = daily?.temperatureMin?.firstOrNull() ?: current.temperature
+        val rainProb = daily?.precipitationProbabilityMax?.firstOrNull() ?: 0
+        val uv = daily?.uvIndexMax?.firstOrNull() ?: 2.0
+
+        briefingJob?.cancel()
+        _uiState.update { it.copy(isGeneratingBriefing = true, aiBriefing = "", aiBriefingError = null) }
+
+        briefingJob = viewModelScope.launch {
+            try {
+                withTimeout(60_000L) {
+                    aiService.streamWeatherBriefing(
+                        cityName = city.name,
+                        currentTemp = current.temperature,
+                        condition = info.titleFr,
+                        maxTemp = maxTemp,
+                        minTemp = minTemp,
+                        rainProb = rainProb,
+                        windSpeed = current.windSpeed,
+                        uvIndex = uv
+                    ).collect { chunk ->
+                        _uiState.update { currentSt ->
+                            currentSt.copy(aiBriefing = (currentSt.aiBriefing ?: "") + chunk)
+                        }
+                    }
+                }
+                _uiState.update { it.copy(isGeneratingBriefing = false) }
+            } catch (e: TimeoutCancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isGeneratingBriefing = false,
+                        aiBriefingError = "Délai de génération dépassé (60s). Veuillez réessayer."
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isGeneratingBriefing = false,
+                        aiBriefingError = e.localizedMessage ?: "Erreur de génération du bulletin IA"
+                    )
+                }
+            }
+        }
+    }
+
+    fun askAiQuestion(question: String) {
+        if (question.isBlank()) return
+        val weather = _uiState.value.weather
+        val city = _uiState.value.currentCity
+        val current = weather?.current
+        val info = current?.let { WeatherCodeMapper.getWeatherInfo(it.weatherCode, it.isDay == 1) }
+
+        val contextStr = buildString {
+            append("Ville: ${city.name}, ${city.country}. ")
+            if (current != null && info != null) {
+                append("Température: ${current.temperature}°C, Ressenti: ${current.apparentTemperature}°C, ")
+                append("Condition: ${info.titleFr}, Vent: ${current.windSpeed} km/h, Humidité: ${current.relativeHumidity}%. ")
+            }
+            val todayMax = weather?.daily?.temperatureMax?.firstOrNull()
+            val todayMin = weather?.daily?.temperatureMin?.firstOrNull()
+            val rainProb = weather?.daily?.precipitationProbabilityMax?.firstOrNull()
+            if (todayMax != null && todayMin != null) {
+                append("Max: $todayMax°C, Min: $todayMin°C. ")
+            }
+            if (rainProb != null) {
+                append("Probabilité de pluie max: $rainProb%. ")
+            }
+        }
+
+        questionJob?.cancel()
+        _uiState.update {
+            it.copy(
+                isAskingQuestion = true,
+                aiQuestion = question,
+                aiAnswer = "",
+                aiQuestionError = null
+            )
+        }
+
+        questionJob = viewModelScope.launch {
+            try {
+                withTimeout(60_000L) {
+                    aiService.streamWeatherAnswer(question, contextStr).collect { chunk ->
+                        _uiState.update { currentSt ->
+                            currentSt.copy(aiAnswer = (currentSt.aiAnswer ?: "") + chunk)
+                        }
+                    }
+                }
+                _uiState.update { it.copy(isAskingQuestion = false) }
+            } catch (e: TimeoutCancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isAskingQuestion = false,
+                        aiQuestionError = "Délai de réponse dépassé (60s)."
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isAskingQuestion = false,
+                        aiQuestionError = e.localizedMessage ?: "Impossible d'obtenir une réponse de Gemini"
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearAiQuestion() {
+        _uiState.update { it.copy(aiQuestion = "", aiAnswer = null, aiQuestionError = null) }
     }
 }
 

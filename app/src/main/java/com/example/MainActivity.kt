@@ -16,6 +16,10 @@ import com.example.util.NotificationHelper
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Configure App Check with launch intent before any UI or Firebase operations
+        com.example.util.configureAppCheck(this, intent)
+
         enableEdgeToEdge()
 
         // Create Android notification channel
